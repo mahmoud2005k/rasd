@@ -1,0 +1,12 @@
+.env
+*.db
+__pycache__/
+*.pyc
+.vscode/
+venv/
+server/*.csv
+server/model.joblib.backup
+server/phishing_all.txt
+server/report_figures/
+server/evaluation.json
+server/requirements-deploy.txt.bak

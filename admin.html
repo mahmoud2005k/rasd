@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>لوحة رصد</title>
+<style>
+:root{--bg:#050A14;--card:#0B1525;--card2:#101C30;--line:#2A3B58;--tx:#F5F7FA;--mut:#B6C0D0;--ac:#20D9A5;--bad:#ff5470;--warn:#ffb547}
+*{box-sizing:border-box;margin:0}
+body{background:var(--bg);color:var(--tx);font-family:"IBM Plex Sans Arabic","Segoe UI",Tahoma,Arial,sans-serif;line-height:1.7;padding:20px}
+.wrap{max-width:900px;margin:0 auto}
+h1{font-size:1.7rem;margin:10px 0 16px}h3{margin:20px 0 10px;font-size:1.05rem}
+.card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:18px;margin-bottom:16px}
+input{background:var(--card2);border:1px solid var(--line);color:var(--tx);border-radius:10px;padding:10px;font:inherit;direction:ltr;width:100%;margin-bottom:10px}
+button{background:var(--ac);color:#031812;border:0;border-radius:12px;min-height:44px;padding:0 24px;font:inherit;font-weight:700;cursor:pointer}
+button:hover{background:#18B88B}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px}
+.num{background:var(--card2);border:1px solid var(--line);border-radius:12px;padding:12px}
+.num b{display:block;font-size:1.6rem}.num span{color:var(--mut);font-size:.85rem}
+.bar{display:flex;align-items:center;gap:10px;margin:6px 0}
+.bar i{display:block;height:14px;border-radius:7px;background:var(--ac);min-width:3px}
+.bar .l{min-width:120px;overflow-wrap:anywhere}.bar .v{color:var(--mut)}
+table{width:100%;border-collapse:collapse}td,th{border-bottom:1px solid var(--line);padding:8px;text-align:start;overflow-wrap:anywhere}th{color:var(--mut);font-weight:500}
+.mut{color:var(--mut)}.err{color:var(--bad)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>لوحة رصد: إحصائيات النظام</h1>
+  <div class="card">
+    <p class="mut">اكتب عنوان الخادم ومفتاح الإدارة (ADMIN_KEY الموجود في ملف .env). المفتاح لا يُحفظ.</p><br>
+    <input id="api" value="http://127.0.0.1:5000" aria-label="API">
+    <input id="key" type="password" placeholder="ADMIN_KEY" aria-label="key">
+    <button id="go">عرض الإحصائيات</button>
+    <p id="msg" class="mut" style="margin-top:10px"></p>
+  </div>
+  <div id="out" hidden></div>
+</div>
+<script>
+const $ = id => document.getElementById(id);
+const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const VERDICT = { dangerous: "خطير", suspicious: "مشبوه", safe: "آمن" };
+const SOURCE = { web: "الموقع", bot: "بوت تيليجرام", extension: "الإضافة", api: "API", message: "الرسائل" };
+
+function bars(rows) {
+  const max = Math.max(1, ...rows.map(r => r[1]));
+  return rows.length ? rows.map(([l, v]) => `<div class="bar"><span class="l">${esc(l)}</span><i style="width:${Math.max(3, 60 * v / max)}%"></i><span class="v">${v}</span></div>`).join("") : '<p class="mut">لا توجد بيانات بعد.</p>';
+}
+const num = (v, l) => `<div class="num"><b>${esc(v)}</b><span>${esc(l)}</span></div>`;
+
+$("go").onclick = async () => {
+  $("msg").className = "mut"; $("msg").textContent = "جارٍ التحميل...";
+  try {
+    const r = await fetch($("api").value.replace(/\/$/, "") + "/api/admin/stats", { headers: { "X-Admin-Key": $("key").value } });
+    if (r.status === 403) throw new Error("المفتاح غير صحيح.");
+    if (r.status === 404) throw new Error("اللوحة معطّلة: أضف ADMIN_KEY إلى ملف .env وأعد تشغيل الخادم.");
+    if (!r.ok) throw new Error("خطأ من الخادم (" + r.status + ").");
+    const d = await r.json();
+    const st = d.model && d.model.metrics && d.model.metrics["Stacking (RF+XGB -> LogReg)"];
+    $("out").innerHTML =
+      `<div class="grid">${num(d.scans_total, "عدد الفحوص")}${num(d.reports_total, "عدد البلاغات")}${num(d.db_links, "روابط في القاعدة")}${st ? num((st.accuracy[0] * 100).toFixed(1) + "%", "دقة النموذج (تحقق متقاطع)") : ""}</div>` +
+      `<div class="card"><h3>الفحوص حسب الحكم</h3>${bars(Object.entries(d.by_verdict).map(([k, v]) => [VERDICT[k] || k, v]))}</div>` +
+      `<div class="card"><h3>الفحوص حسب المصدر</h3>${bars(Object.entries(d.by_source).map(([k, v]) => [SOURCE[k] || k, v]))}</div>` +
+      `<div class="card"><h3>الفحوص خلال آخر الأيام</h3>${bars(d.per_day.map(x => [x.day, x.n]))}</div>` +
+      `<div class="card"><h3>أكثر الدومينات المشبوهة فحصاً</h3>${bars(d.top_flagged.map(x => [x.host, x.n]))}</div>` +
+      `<div class="card"><h3>البلاغات حسب النوع</h3>${bars(Object.entries(d.reports_by_type))}</div>` +
+      `<div class="card"><h3>آخر البلاغات</h3><table><tr><th>الدومين</th><th>النوع</th><th>التاريخ</th></tr>${d.latest_reports.map(x => `<tr><td dir="ltr">${esc(x.host)}</td><td>${esc(x.type)}</td><td>${esc(x.created)}</td></tr>`).join("") || '<tr><td colspan="3" class="mut">لا توجد بلاغات.</td></tr>'}</table></div>` +
+      `<p class="mut">الإحصائيات تخزّن الدومين والحكم والدرجة فقط، بدون الرابط الكامل وبدون عنوان IP.</p>`;
+    $("out").hidden = false; $("msg").textContent = "";
+  } catch (e) {
+    $("msg").className = "err"; $("msg").textContent = e.message.includes("Failed to fetch") ? "تعذر الاتصال بالخادم. هل يعمل python app.py؟" : e.message;
+  }
+};
+</script>
+</body>
+</html>

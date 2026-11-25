@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<style>
+  body{width:340px;margin:0;padding:14px;background:#050A14;color:#F5F7FA;font:14px/1.7 "Segoe UI",Tahoma,Arial,sans-serif}
+  h1{font-size:16px;margin:0 0 8px}
+  #url{direction:ltr;color:#B6C0D0;font-size:12px;overflow-wrap:anywhere;margin-bottom:10px}
+  .v{font-size:20px;font-weight:700}.safe{color:#20D9A5}.mid{color:#ffb547}.bad{color:#ff5470}
+  ul{list-style:none;padding:0;margin:10px 0}
+  li{background:#101C30;border-inline-start:3px solid #B6C0D0;border-radius:8px;padding:6px 10px;margin-bottom:6px}
+  li.h{border-color:#ff5470}li.m{border-color:#ffb547}li.g{border-color:#20D9A5}
+  .mut{color:#B6C0D0;font-size:12px}
+  input{width:100%;box-sizing:border-box;background:#101C30;border:1px solid #2A3B58;color:#F5F7FA;border-radius:8px;padding:6px;direction:ltr;margin-top:6px}
+</style>
+</head>
+<body>
+  <h1>رصد: فحص الصفحة الحالية</h1>
+  <div id="url"></div>
+  <div id="res">...</div>
+  <details style="margin-top:10px"><summary class="mut">عنوان الخادم</summary><input id="api" placeholder="http://127.0.0.1:5000"></details>
+  <script src="popup.js"></script>
+</body>
+</html>
